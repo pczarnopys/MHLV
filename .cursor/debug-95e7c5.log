@@ -1,0 +1,2 @@
+{"sessionId":"95e7c5","runId":"post-fix","hypothesisId":"H1_H2_H4","location":"LoopVisualiser.template.html:pointerdown","message":"carousel pointerdown","data":{"targetTag":"IMG","targetClass":"","inArtLink":true,"topTag":"IMG","topClass":"","willCapture":false,"runId":"post-fix"},"timestamp":1778442803955}
+{"sessionId":"95e7c5","runId":"post-fix","hypothesisId":"H2","location":"LoopVisualiser.template.html:click","message":"carousel click bubbled","data":{"targetTag":"IMG","defaultPrevented":false,"topTag":"IMG","topClass":"","runId":"post-fix"},"timestamp":1778442804065}
