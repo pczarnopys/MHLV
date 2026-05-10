@@ -1,0 +1,909 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Mathandel — Łańcuch wymian</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0b0d10;
+    --bg-2: #111418;
+    --bg-3: #171b21;
+    --line: #20252c;
+    --line-2: #2a3038;
+    --fg: #e9ecf1;
+    --fg-dim: #9aa3b0;
+    --fg-mute: #5d6672;
+    --accent: oklch(72% 0.12 205);
+
+    --tile: clamp(150px, 22vw, 260px);
+    --gap: clamp(48px, 6.5vw, 96px);
+    --arrow: clamp(34px, 4.2vw, 56px);
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(64, 132, 168, 0.08), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(120, 90, 180, 0.06), transparent 60%),
+      var(--bg);
+    color: var(--fg);
+    font-family: "Inter", system-ui, sans-serif;
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  /* ───── App shell ───── */
+  .app {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    height: 100dvh;
+    min-height: 100dvh;
+  }
+
+  /* ───── Header ───── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 22px clamp(20px, 4vw, 56px);
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(to bottom, rgba(255,255,255,0.015), transparent);
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .brand-mark {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background:
+      conic-gradient(from 210deg at 50% 50%,
+        oklch(72% 0.12 205) 0deg,
+        oklch(72% 0.12 145) 120deg,
+        oklch(72% 0.12 295) 240deg,
+        oklch(72% 0.12 205) 360deg);
+    position: relative;
+  }
+  .brand-mark::after {
+    content: "";
+    position: absolute; inset: 5px;
+    border-radius: 4px;
+    background: var(--bg);
+  }
+  .brand-mark::before {
+    content: "";
+    position: absolute; inset: 11px;
+    border-radius: 2px;
+    background: var(--fg);
+  }
+  .brand-name {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .brand-name .sub {
+    color: var(--fg-mute);
+    font-weight: 400;
+    margin-left: 8px;
+  }
+
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    color: var(--fg-dim);
+  }
+  .meta .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: oklch(72% 0.16 145);
+    box-shadow: 0 0 0 4px oklch(72% 0.16 145 / 0.18);
+    margin-right: 6px;
+    display: inline-block;
+    vertical-align: middle;
+  }
+  .meta .pill {
+    padding: 5px 10px;
+    border: 1px solid var(--line-2);
+    border-radius: 999px;
+    background: var(--bg-2);
+  }
+  @media (max-width: 640px) {
+    .meta .pill.hide-sm { display: none; }
+  }
+
+  /* ───── Title row above carousel ───── */
+  .title-row {
+    padding: clamp(20px, 3vw, 36px) clamp(20px, 4vw, 56px) 8px;
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .title-row h1 {
+    margin: 0;
+    font-size: clamp(20px, 2.4vw, 30px);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  .title-row .crumbs {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--fg-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 6px;
+  }
+  .title-row .stat {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    color: var(--fg-dim);
+    text-align: right;
+    line-height: 1.6;
+    white-space: nowrap;
+  }
+  .title-row .stat b {
+    color: var(--fg);
+    font-weight: 500;
+  }
+  @media (max-width: 640px) {
+    .title-row .stat { display: none; }
+  }
+
+  /* ───── Carousel ───── */
+  .carousel-wrap {
+    position: relative;
+    overflow: hidden;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+  }
+  /* edge fades */
+  .carousel-wrap::before,
+  .carousel-wrap::after {
+    content: "";
+    position: absolute; top: 0; bottom: 0;
+    width: 80px;
+    pointer-events: none;
+    z-index: 3;
+  }
+  .carousel-wrap::before { left: 0; background: linear-gradient(to right, var(--bg), transparent); }
+  .carousel-wrap::after  { right: 0; background: linear-gradient(to left,  var(--bg), transparent); }
+
+  .carousel {
+    display: flex;
+    align-items: center;
+    gap: var(--gap);
+    padding: 24px clamp(20px, 4vw, 56px);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+  }
+  .carousel.dragging { cursor: grabbing; }
+  .carousel::-webkit-scrollbar { display: none; }
+
+  /* ───── Node (one user → game → next user) ───── */
+  .node {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-rows: auto var(--tile) auto;
+    gap: 14px;
+    width: var(--tile);
+    scroll-snap-align: center;
+    position: relative;
+  }
+
+  .name {
+    font-size: clamp(12px, 1vw, 14px);
+    font-weight: 500;
+    letter-spacing: -0.005em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .name .avatar {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--bg);
+    font-family: "JetBrains Mono", monospace;
+  }
+  .name .label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .name .role {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--fg-mute);
+    margin-left: auto;
+    flex: 0 0 auto;
+  }
+  .name.below {
+    color: var(--fg-dim);
+  }
+
+  /* Game tile */
+  .tile {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.04) inset,
+      0 30px 60px -30px rgba(0,0,0,0.6),
+      0 0 0 1px rgba(255,255,255,0.02);
+    isolation: isolate;
+  }
+  .tile .art {
+    position: absolute; inset: 0;
+    z-index: 0;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+  }
+  .tile .game-title {
+    position: absolute;
+    left: 14px; right: 14px; bottom: 14px;
+    font-size: clamp(13px, 1.05vw, 16px);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    z-index: 2;
+    pointer-events: none;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.6);
+  }
+  .tile .game-meta {
+    position: absolute;
+    left: 14px; top: 14px;
+    z-index: 2;
+    pointer-events: none;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    color: rgba(255,255,255,0.75);
+    background: rgba(0,0,0,0.35);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .tile .scrim {
+    position: absolute; inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 55%);
+    z-index: 1;
+    pointer-events: none;
+    transition: opacity 160ms ease;
+  }
+  .tile:hover .scrim,
+  .tile:focus-within .scrim {
+    opacity: 0.75;
+  }
+
+  .tile .art-link {
+    display: block;
+    width: 100%;
+    height: 100%;
+    color: inherit;
+    text-decoration: none;
+    outline: none;
+  }
+  .tile .art-link:focus-visible {
+    box-shadow: inset 0 0 0 2px oklch(72% 0.12 205);
+    border-radius: var(--radius);
+  }
+
+  .tile-desc {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    padding: 12px 14px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 160ms ease;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+  }
+  .tile:hover .tile-desc,
+  .tile:focus-within .tile-desc {
+    opacity: 1;
+  }
+  .tile-desc-inner {
+    max-height: 78%;
+    overflow-y: auto;
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--fg);
+    background: rgba(10, 12, 15, 0.94);
+    border: 1px solid var(--line-2);
+    border-radius: 10px;
+    padding: 10px 12px;
+    white-space: pre-wrap;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+  }
+
+  /* Arrow between tiles */
+  .arrow {
+    flex: 0 0 auto;
+    width: var(--arrow);
+    height: var(--arrow);
+    display: grid;
+    place-items: center;
+    position: relative;
+    align-self: center;
+  }
+  /* We'll wrap nodes + arrows in a flex line; arrow is placed at tile vertical center via grid trick */
+  .row {
+    display: flex;
+    align-items: stretch;
+    gap: var(--gap);
+  }
+  .arrow {
+    align-self: center;
+    /* compensate for label heights so arrow sits at image vertical center */
+    transform: translateY(0);
+  }
+  .arrow svg {
+    width: 100%; height: 100%;
+    display: block;
+  }
+  .arrow .stroke {
+    stroke: #fff;
+    stroke-width: 2;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .arrow .num {
+    position: absolute;
+    top: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    color: var(--fg-mute);
+    letter-spacing: 0.08em;
+  }
+
+  /* The carousel is built from <article class="node"> separated by <div class="arrow"> siblings */
+
+  /* ───── Footer / controls ───── */
+  footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px clamp(20px, 4vw, 56px);
+    border-top: 1px solid var(--line);
+    background: linear-gradient(to top, rgba(255,255,255,0.015), transparent);
+  }
+  .legend {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--fg-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .legend .key {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .legend kbd {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    color: var(--fg);
+    background: var(--bg-3);
+    border: 1px solid var(--line-2);
+    border-bottom-width: 2px;
+    padding: 2px 6px;
+    border-radius: 5px;
+  }
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ctrl {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    background: var(--bg-2);
+    border: 1px solid var(--line-2);
+    color: var(--fg);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+  }
+  .ctrl:hover { background: var(--bg-3); border-color: #353c46; }
+  .ctrl:active { transform: scale(0.96); }
+  .ctrl svg { width: 16px; height: 16px; stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .progress {
+    flex: 1;
+    height: 2px;
+    background: var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+    max-width: 360px;
+    margin: 0 16px;
+  }
+  .progress > span {
+    display: block; height: 100%;
+    background: linear-gradient(to right, var(--fg), var(--fg-dim));
+    width: 33%;
+    transform-origin: left center;
+  }
+  @media (max-width: 640px) {
+    .legend { display: none; }
+    .progress { margin: 0 8px; }
+  }
+
+  /* ───── Game artwork (placeholder boxes — distinct per game) ─────
+     Subtle striped/colorblock backgrounds, no fake brands. */
+  .art-1 { background:
+      repeating-linear-gradient(135deg, #1f3a4d 0 14px, #18303f 14px 28px),
+      #1a2a36; }
+  .art-2 { background:
+      repeating-linear-gradient(45deg, #3a2440 0 12px, #2c1c30 12px 24px); }
+  .art-3 { background:
+      radial-gradient(circle at 30% 30%, #244a3a 0%, #122a22 70%); }
+  .art-4 { background:
+      repeating-linear-gradient(90deg, #2a2a36 0 18px, #1d1d27 18px 36px); }
+  .art-5 { background:
+      conic-gradient(from 200deg at 60% 40%, #4a2a1f, #2a1812, #4a2a1f); }
+  .art-6 { background:
+      linear-gradient(160deg, #2c3a1f 0%, #1a220f 100%),
+      repeating-linear-gradient(0deg, transparent 0 22px, rgba(255,255,255,0.04) 22px 23px); }
+  .art-7 { background:
+      repeating-linear-gradient(75deg, #1a2438 0 10px, #131b2c 10px 20px); }
+  .art-8 { background:
+      radial-gradient(ellipse at 50% 80%, #3d2245 0%, #1a1020 70%); }
+
+  .art .glyph {
+    position: relative;
+    width: 50%; height: 50%;
+    opacity: 0.65;
+    display: grid;
+    place-items: center;
+  }
+  .art .glyph svg {
+    width: 100%; height: 100%;
+    fill: none;
+    stroke: rgba(255,255,255,0.78);
+    stroke-width: 1.4;
+  }
+
+  /* ───── Avatar palette — assign by user ───── */
+  .av-a { background: oklch(72% 0.12 205); }
+  .av-b { background: oklch(72% 0.12 145); }
+  .av-c { background: oklch(72% 0.12 65); }
+  .av-d { background: oklch(72% 0.12 25); }
+  .av-e { background: oklch(72% 0.12 295); }
+  .av-f { background: oklch(72% 0.12 175); }
+  .av-g { background: oklch(72% 0.12 105); }
+  .av-h { background: oklch(72% 0.12 335); }
+
+  /* ───── Loop indicator chip after last node ───── */
+  .loop-back {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 8px;
+    color: var(--fg-mute);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    white-space: nowrap;
+  }
+  .loop-back .arc {
+    width: 28px; height: 28px;
+    border: 1px dashed var(--line-2);
+    border-radius: 50%;
+    position: relative;
+  }
+  .loop-back .arc::after {
+    content: "↺";
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    color: var(--fg-dim);
+    font-size: 14px;
+  }
+
+  .tile .art img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .loop-select {
+    appearance: none;
+    background: var(--bg-3);
+    border: 1px solid var(--line-2);
+    color: var(--fg);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    padding: 6px 28px 6px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    max-width: min(420px, 85vw);
+  }
+  .meta label.pill.loop-picker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="app" data-screen-label="01 Loop Visualiser">
+  <!-- ───────── HEADER ───────── -->
+  <header>
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"></div>
+      <div class="brand-name">
+        Mathandel<span class="sub">/ LoopVisualiser</span>
+      </div>
+    </div>
+    <div class="meta">
+      <label class="pill loop-picker">
+        <span style="opacity:.85">Pętla</span>
+        <select id="loopSelect" class="loop-select" aria-label="Wybór pętli wymiany"></select>
+      </label>
+      <span class="pill"><span class="dot"></span><span id="headerPill1">MatHandel</span></span>
+      <span class="pill hide-sm" id="headerPill2">—</span>
+    </div>
+  </header>
+
+  <!-- ───────── TITLE ROW ───────── -->
+  <!-- (placed inside grid row 1.5 by repositioning carousel grid)
+       — using a flex container instead, simpler. -->
+  <div class="carousel-wrap">
+    <div class="carousel" id="carousel" aria-label="Łańcuch wymian — przewijaj w lewo/prawo">
+      <!--
+        We programmatically build N copies of the chain to make it look infinite.
+        Each "unit" = ARTICLE.node (sender → tile → receiver) followed by ARROW.
+        Receiver of node N == Sender of node N+1, which we render explicitly so
+        the labels above and below each tile are correct.
+      -->
+    </div>
+  </div>
+
+  <!-- ───────── FOOTER ───────── -->
+  <footer>
+    <div class="legend">
+      <span class="key"><kbd>←</kbd><kbd>→</kbd>nawigacja</span>
+      <span class="key"><kbd>drag</kbd>przewijanie</span>
+      <span class="key"><kbd>R</kbd>powrót do startu</span>
+    </div>
+    <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+    <div class="controls">
+      <button class="ctrl" id="prev" aria-label="Poprzedni">
+        <svg viewBox="0 0 24 24"><polyline points="15 6 9 12 15 18"/></svg>
+      </button>
+      <button class="ctrl" id="next" aria-label="Następny">
+        <svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg>
+      </button>
+    </div>
+  </footer>
+</div>
+
+<!-- ─────────────────────── Title row injected above carousel ─────────────────────── -->
+<template id="titleRowTpl">
+  <div class="title-row">
+    <div>
+      <div class="crumbs">Wynik losowania · łańcuch wymian</div>
+      <h1 id="titleMain">—</h1>
+    </div>
+    <div class="stat" id="titleStat"><b>—</b></div>
+  </div>
+</template>
+
+<script>
+  // Insert title row between header and carousel-wrap
+  const app = document.querySelector('.app');
+  const tpl = document.getElementById('titleRowTpl').content.cloneNode(true);
+  app.insertBefore(tpl, document.querySelector('.carousel-wrap'));
+  // The inserted title row pushes the grid-template-rows; ensure it's auto.
+  app.style.gridTemplateRows = 'auto auto 1fr auto';
+</script>
+
+<script id="loop-data" type="application/json">__LOOP_DATA_JSON__</script>
+<script>
+  const DATA = JSON.parse(document.getElementById('loop-data').textContent);
+  const AV = ['av-a','av-b','av-c','av-d','av-e','av-f','av-g','av-h'];
+  const ARTS = ['art-1','art-2','art-3','art-4','art-5','art-6','art-7','art-8'];
+  const GKEYS = ['diamond','tower','compass','gear','leaf','atlas','moon','crown'];
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function avatarCls(u) {
+    let h = 0;
+    const str = String(u);
+    for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+    return AV[h % AV.length];
+  }
+
+  function avatarLetter(u) {
+    const s = String(u).trim();
+    if (!s) return '?';
+    return s[0].toUpperCase();
+  }
+
+  const GLYPHS = {
+    diamond: '<svg viewBox="0 0 100 100"><path d="M50 12 L88 50 L50 88 L12 50 Z"/></svg>',
+    tower:   '<svg viewBox="0 0 100 100"><rect x="36" y="20" width="28" height="68"/><rect x="28" y="50" width="44" height="38"/></svg>',
+    compass: '<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="32"/><path d="M50 22 L58 50 L50 78 L42 50 Z"/></svg>',
+    gear:    '<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="18"/><path d="M50 14 L50 26 M50 74 L50 86 M14 50 L26 50 M74 50 L86 50 M24 24 L33 33 M67 67 L76 76 M76 24 L67 33 M33 67 L24 76"/></svg>',
+    leaf:    '<svg viewBox="0 0 100 100"><path d="M22 78 C22 40 40 22 78 22 C78 60 60 78 22 78 Z"/><path d="M22 78 L78 22"/></svg>',
+    atlas:   '<svg viewBox="0 0 100 100"><rect x="22" y="20" width="56" height="60"/><path d="M22 50 L78 50 M50 20 L50 80"/></svg>',
+    moon:    '<svg viewBox="0 0 100 100"><path d="M68 22 A36 36 0 1 0 68 78 A28 28 0 1 1 68 22 Z"/></svg>',
+    crown:   '<svg viewBox="0 0 100 100"><path d="M16 70 L24 32 L40 56 L50 26 L60 56 L76 32 L84 70 Z"/><path d="M16 78 L84 78"/></svg>'
+  };
+
+  let currentLoop = 0;
+
+  function chainLen() {
+    return DATA.loops[currentLoop]?.length || 0;
+  }
+
+  /** Kolejność wizualna odwrotna niż w pliku wyników (strzałki bez zmian). */
+  function edgesReversed() {
+    const raw = DATA.loops[currentLoop] || [];
+    return raw.slice().reverse();
+  }
+
+  function fillLoopSelect() {
+    const sel = document.getElementById('loopSelect');
+    sel.innerHTML = '';
+    DATA.loops.forEach((loop, idx) => {
+      const o = document.createElement('option');
+      o.value = String(idx);
+      o.textContent = 'Pętla ' + (idx + 1) + ' — ' + loop.length + ' wymian';
+      sel.appendChild(o);
+    });
+    sel.value = String(currentLoop);
+  }
+
+  function updateHeaderAndTitle() {
+    const m = DATA.meta;
+    document.getElementById('headerPill1').textContent = 'MatHandel #' + m.edition + ' · geeklist ' + m.geeklistId;
+    document.getElementById('headerPill2').textContent = m.totalTrades + ' wymian · ' + m.numLoops + ' pętli';
+    const loop = DATA.loops[currentLoop];
+    const n = loop.length;
+    document.getElementById('titleMain').textContent = 'Pętla ' + (currentLoop + 1) + ' — ' + n + ' wymian w łańcuchu';
+    document.getElementById('titleStat').innerHTML =
+      '<b>' + n + '</b> wymian w pętli &nbsp;·&nbsp; <b>' + m.totalTrades + '</b> wyników TM &nbsp;·&nbsp; <b>' + m.numLoops + '</b> pętli';
+  }
+
+  function arrowSVG() {
+    return `
+      <svg viewBox="0 0 56 56" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        <polyline class="stroke" points="20,14 36,28 20,42"/>
+      </svg>`;
+  }
+
+  function nodeHTML(edgeIndex) {
+    const edges = edgesReversed();
+    const edge = edges[edgeIndex];
+    const game = edge.game;
+    const art = ARTS[edgeIndex % ARTS.length];
+    const gk = GKEYS[edgeIndex % GKEYS.length];
+    const glyphSvg = GLYPHS[gk];
+    const imgUrl = game.image || game.thumb;
+    const href = game.geeklistItemUrl || '';
+    const aria = escapeHtml('Wpis na BGG: ' + (game.title || game.meta || ''));
+    let innerArt;
+    if (imgUrl) {
+      const imgTag = '<img src="' + escapeHtml(imgUrl) + '" alt="" loading="lazy" decoding="async" />';
+      innerArt = href
+        ? '<a class="art-link" href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer" aria-label="' + aria + '">' + imgTag + '</a>'
+        : imgTag;
+    } else {
+      const ph = '<div class="' + art + '"><div class="glyph">' + glyphSvg + '</div></div>';
+      innerArt = href
+        ? '<a class="art-link" href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer" aria-label="' + aria + '">' + ph + '</a>'
+        : ph;
+    }
+    const descRaw = (game.description || '').trim();
+    const descBlock = descRaw
+      ? '<div class="tile-desc"><div class="tile-desc-inner">' + escapeHtml(descRaw) + '</div></div>'
+      : '';
+    const su = escapeHtml(edge.sender);
+    const ru = escapeHtml(edge.receiver);
+    const title = escapeHtml(game.title);
+    const meta = escapeHtml(game.meta);
+    const sL = avatarLetter(edge.sender);
+    const rL = avatarLetter(edge.receiver);
+    const sC = avatarCls(edge.sender);
+    const rC = avatarCls(edge.receiver);
+    return `
+      <article class="node">
+        <div class="name">
+          <span class="avatar ${sC}">${sL}</span>
+          <span class="label">${su}</span>
+          <span class="role">wysyła</span>
+        </div>
+        <div class="tile" tabindex="0">
+          <div class="art">${innerArt}</div>
+          ${descBlock}
+          <span class="game-meta">${meta}</span>
+          <div class="scrim"></div>
+          <div class="game-title">${title}</div>
+        </div>
+        <div class="name below">
+          <span class="avatar ${rC}">${rL}</span>
+          <span class="label">${ru}</span>
+          <span class="role">odbiera</span>
+        </div>
+      </article>
+    `;
+  }
+
+  function arrowHTML(num, maxN) {
+    const pad = maxN >= 100 ? 3 : 2;
+    const display = String(num).padStart(pad, '0');
+    return `<div class="arrow" aria-hidden="true">
+      <span class="num">${display}</span>
+      ${arrowSVG()}
+    </div>`;
+  }
+
+  function loopBackChip() {
+    return `<div class="loop-back" aria-hidden="true">
+      <span class="arc"></span>
+      <span>powrót do początku pętli</span>
+    </div>`;
+  }
+
+  const carousel = document.getElementById('carousel');
+  const REPEATS = 3;
+
+  function buildChain() {
+    const n = chainLen();
+    let html = '';
+    let step = 1;
+    for (let r = 0; r < REPEATS; r++) {
+      for (let i = 0; i < n; i++) {
+        html += nodeHTML(i);
+        html += arrowHTML(step, n);
+        step++;
+        if (step > n) step = 1;
+      }
+    }
+    html += loopBackChip();
+    carousel.innerHTML = html;
+  }
+
+  fillLoopSelect();
+  updateHeaderAndTitle();
+  buildChain();
+
+  document.getElementById('loopSelect').addEventListener('change', (e) => {
+    currentLoop = +e.target.value;
+    updateHeaderAndTitle();
+    buildChain();
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      recalc();
+      center();
+    }));
+  });
+
+  function loopWidth() {
+    const chip = carousel.querySelector('.loop-back');
+    const chipW = chip ? chip.offsetWidth : 0;
+    const gap = parseFloat(getComputedStyle(carousel).gap) || 0;
+    const total = carousel.scrollWidth - chipW - gap;
+    return total / REPEATS;
+  }
+
+  let lw = 0;
+  function recalc() { lw = loopWidth(); }
+  window.addEventListener('resize', recalc);
+  requestAnimationFrame(() => requestAnimationFrame(recalc));
+
+  function maybeWrap() {
+    if (!lw) return;
+    const x = carousel.scrollLeft;
+    if (x < lw * 0.5) {
+      carousel.scrollLeft = x + lw;
+    } else if (x > lw * 1.5) {
+      carousel.scrollLeft = x - lw;
+    }
+    updateProgress();
+  }
+
+  function center() {
+    recalc();
+    if (!lw) { requestAnimationFrame(center); return; }
+    carousel.scrollLeft = lw;
+    updateProgress();
+  }
+  window.addEventListener('load', center);
+
+  carousel.addEventListener('scroll', maybeWrap, { passive: true });
+
+  let isDown = false, startX = 0, startLeft = 0;
+  carousel.addEventListener('pointerdown', (e) => {
+    if (e.target && e.target.closest && e.target.closest('a.art-link')) return;
+    isDown = true;
+    carousel.classList.add('dragging');
+    carousel.setPointerCapture(e.pointerId);
+    startX = e.clientX;
+    startLeft = carousel.scrollLeft;
+  });
+  carousel.addEventListener('pointermove', (e) => {
+    if (!isDown) return;
+    carousel.scrollLeft = startLeft - (e.clientX - startX);
+  });
+  function endDrag(e) {
+    isDown = false;
+    carousel.classList.remove('dragging');
+    if (e && e.pointerId !== undefined) {
+      try { carousel.releasePointerCapture(e.pointerId); } catch(_) {}
+    }
+  }
+  carousel.addEventListener('pointerup', endDrag);
+  carousel.addEventListener('pointercancel', endDrag);
+  carousel.addEventListener('pointerleave', endDrag);
+
+  function stepNav(dir) {
+    const tile = carousel.querySelector('.node');
+    const arrow = carousel.querySelector('.arrow');
+    const gap = parseFloat(getComputedStyle(carousel).gap) || 0;
+    const dist = (tile?.offsetWidth || 200) + (arrow?.offsetWidth || 40) + gap * 2;
+    carousel.scrollBy({ left: dir * dist, behavior: 'smooth' });
+  }
+  document.getElementById('prev').addEventListener('click', () => stepNav(-1));
+  document.getElementById('next').addEventListener('click', () => stepNav(1));
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); stepNav(-1); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); stepNav(1);  }
+    if (e.key === 'r' || e.key === 'R') { center(); }
+  });
+
+  const bar = document.getElementById('progressBar');
+  function updateProgress() {
+    if (!lw) return;
+    const x = ((carousel.scrollLeft - lw * 0.5) % lw + lw) % lw;
+    const pct = (x / lw) * 100;
+    bar.style.width = Math.max(4, pct) + '%';
+  }
+</script>
+
+</body>
+</html>
