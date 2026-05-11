@@ -720,6 +720,12 @@
     return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
+  function safeUrl(u) {
+    const s = String(u ?? '').trim();
+    if (!s) return '';
+    return /^https?:\/\//i.test(s) ? s : '';
+  }
+
   function avatarCls(u) {
     let h = 0;
     const str = String(u);
@@ -801,8 +807,8 @@
     const art = ARTS[edgeIndex % ARTS.length];
     const gk = GKEYS[edgeIndex % GKEYS.length];
     const glyphSvg = GLYPHS[gk];
-    const imgUrl = game.image || game.thumb;
-    const href = game.geeklistItemUrl || '';
+    const imgUrl = safeUrl(game.image || game.thumb);
+    const href = safeUrl(game.geeklistItemUrl);
     const aria = escapeHtml('Wpis na BGG: ' + (game.title || game.meta || ''));
     let innerArt;
     if (imgUrl) {
@@ -824,8 +830,8 @@
     const ru = escapeHtml(edge.receiver);
     const title = escapeHtml(game.title);
     const meta = escapeHtml(game.meta);
-    const sL = avatarLetter(edge.sender);
-    const rL = avatarLetter(edge.receiver);
+    const sL = escapeHtml(avatarLetter(edge.sender));
+    const rL = escapeHtml(avatarLetter(edge.receiver));
     const sC = avatarCls(edge.sender);
     const rC = avatarCls(edge.receiver);
     const priceHTML = renderPricePill(game.prices);
@@ -873,7 +879,7 @@
     const title = 'BoardGamePrices.co.uk: ' + offers + ' ofert' +
       (inStock ? ', ' + inStock + ' w magazynie' : '') +
       ' (PLN, dostawa PL, bez kosztów wysyłki). Klik = lista ofert.';
-    const url = p.url || '';
+    const url = safeUrl(p.url);
     if (!url) {
       return '<span class="price-pill is-empty" title="' + escapeHtml(title) + '">od <b>' + price + ' zł</b>' + stockNote + '</span>';
     }

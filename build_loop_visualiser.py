@@ -266,7 +266,7 @@ def main() -> int:
     if not template_path.is_file():
         raise SystemExit(f"Brak szablonu {template_path}")
     template = template_path.read_text(encoding="utf-8")
-    json_str = json.dumps(payload, ensure_ascii=False)
+    json_str = json.dumps(payload, ensure_ascii=True)
     if "</script>" in json_str.lower():
         raise SystemExit("Dane zawierają niebezpieczny ciąg — przerwano.")
     marker = "__LOOP_DATA_JSON__"
