@@ -570,7 +570,7 @@ TRADE LOOPS (498 total trades):
 (QRZY88) 2491          receives (SIPIO) 2961
 (SIPIO) 2961           receives (BAAKA) 629
 
-(LYNX32) 2912          receives (ANOPTICHTYS) 310
+(LYNX32) §          receives (ANOPTICHTYS) 310
 (ANOPTICHTYS) 310      receives (LYNX32) 2912
 
 (GARG) 2273            receives (PATRYKGALKA) 263

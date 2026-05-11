@@ -54,33 +54,54 @@ def parse_lista_skrocona(html: str) -> dict[int, list[int]]:
     return out
 
 
-def parse_wyniki(text: str) -> tuple[list[tuple[str, str, str, str]], list[int], int]:
-    """Zwraca (krawędzie jako raw tuple), rozmiary grup, liczbę wymian."""
+def parse_wyniki(
+    text: str,
+) -> tuple[list[list[tuple[str, str, str, str]]], list[int], int]:
+    """Zwraca (pętle w kolejności pojawienia, rozmiary deklarowane, liczbę wymian).
+
+    Pętle z sekcji ``TRADE LOOPS`` są rozdzielone pustymi liniami; ten porządek
+    jest źródłem prawdy. ``Group sizes = ...`` z końca pliku jest posortowane
+    malejąco, więc używamy go wyłącznie jako sanity-check.
+    """
     if "ITEM SUMMARY" not in text:
         raise ValueError("Brak sekcji ITEM SUMMARY — niepoprawny plik wyników.")
     head, _ = text.split("ITEM SUMMARY", 1)
-    edges: list[tuple[str, str, str, str]] = []
+
+    loops: list[list[tuple[str, str, str, str]]] = []
+    cur: list[tuple[str, str, str, str]] = []
+    in_trade_loops = False
     for line in head.splitlines():
-        line = line.strip()
-        m = TRADE_LINE.match(line)
-        if not m:
+        if not in_trade_loops:
+            if line.strip().startswith("TRADE LOOPS"):
+                in_trade_loops = True
             continue
-        ru, ri, su, si = m.group(1).strip(), m.group(2), m.group(3).strip(), m.group(4)
-        edges.append((ru, ri, su, si))
+        stripped = line.strip()
+        m = TRADE_LINE.match(stripped)
+        if m:
+            ru, ri, su, si = m.group(1).strip(), m.group(2), m.group(3).strip(), m.group(4)
+            cur.append((ru, ri, su, si))
+        elif not stripped and cur:
+            loops.append(cur)
+            cur = []
+    if cur:
+        loops.append(cur)
 
     m_sz = GROUP_SIZES_RE.search(text)
     if not m_sz:
         raise ValueError("Nie znaleziono wiersza Group sizes.")
-    sizes = [int(x) for x in m_sz.group(1).split() if x.strip()]
+    declared_sizes = [int(x) for x in m_sz.group(1).split() if x.strip()]
 
     m_nt = NUM_TRADES_RE.search(text)
-    n_trades = int(m_nt.group(1)) if m_nt else len(edges)
+    n_trades = int(m_nt.group(1)) if m_nt else sum(len(loop) for loop in loops)
 
-    if sum(sizes) != len(edges):
+    natural_sizes = [len(loop) for loop in loops]
+    if sorted(natural_sizes, reverse=True) != sorted(declared_sizes, reverse=True):
         raise ValueError(
-            f"Suma grup ({sum(sizes)}) != liczba krawędzi ({len(edges)}). Sprawdź plik."
+            "Rozmiary naturalnych grup nie zgadzają się z 'Group sizes': "
+            f"naturalne={natural_sizes} vs declared={declared_sizes}"
         )
-    return edges, sizes, n_trades
+
+    return loops, natural_sizes, n_trades
 
 
 def main() -> int:
@@ -111,7 +132,7 @@ def main() -> int:
         raise SystemExit(f"Brak pliku wyników: {args.wyniki}")
 
     wyniki_text = args.wyniki.read_text(encoding="utf-8", errors="replace")
-    edges, group_sizes, total_trades = parse_wyniki(wyniki_text)
+    parsed_loops, group_sizes, total_trades = parse_wyniki(wyniki_text)
 
     lista_html = fetch_or_read_lista(args.lista_url, args.lista_file)
     lista_map = parse_lista_skrocona(lista_html)
@@ -211,10 +232,7 @@ def main() -> int:
         }
 
     loops: list[list[dict]] = []
-    off = 0
-    for gsz in group_sizes:
-        chunk = edges[off : off + gsz]
-        off += gsz
+    for chunk in parsed_loops:
         chain: list[dict] = []
         for ru, ri, su, si in chunk:
             i_sent = int(si)
