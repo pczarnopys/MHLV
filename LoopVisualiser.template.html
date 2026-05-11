@@ -200,7 +200,7 @@
   .node {
     flex: 0 0 auto;
     display: grid;
-    grid-template-rows: auto var(--tile) auto;
+    grid-template-rows: auto var(--tile) auto auto;
     gap: 14px;
     width: var(--tile);
     scroll-snap-align: center;
@@ -243,6 +243,51 @@
   }
   .name.below {
     color: var(--fg-dim);
+  }
+
+  /* ───── Price pill (BoardGamePrices.co.uk, PLN, dostawa PL, bez wysylki) ───── */
+  .price-row {
+    display: flex;
+    justify-content: center;
+    margin-top: -6px;
+  }
+  .price-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    padding: 4px 10px;
+    border: 1px solid var(--line-2);
+    border-radius: 999px;
+    background: var(--bg-2);
+    color: var(--fg-dim);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  }
+  .price-pill b {
+    color: var(--fg);
+    font-weight: 600;
+  }
+  .price-pill .pl-note {
+    color: var(--fg-mute);
+  }
+  .price-pill.is-link:hover {
+    background: var(--bg-3);
+    color: var(--fg);
+    border-color: #353c46;
+  }
+  .price-pill.is-link:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px oklch(72% 0.12 205);
+  }
+  .price-pill.is-empty {
+    opacity: 0.55;
+    cursor: default;
   }
 
   /* Game tile */
@@ -390,6 +435,14 @@
     color: var(--fg-mute);
     letter-spacing: 0.08em;
   }
+  .arrow.arrow-bi {
+    width: calc(var(--arrow) * 1.7);
+  }
+  .arrow.arrow-bi .num {
+    color: var(--fg-dim);
+    font-size: 14px;
+    top: -24px;
+  }
 
   /* The carousel is built from <article class="node"> separated by <div class="arrow"> siblings */
 
@@ -427,6 +480,18 @@
     border-bottom-width: 2px;
     padding: 2px 6px;
     border-radius: 5px;
+  }
+  .legend .price-credit {
+    color: var(--fg-mute);
+  }
+  .legend .price-credit a {
+    color: var(--fg-dim);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--line-2);
+  }
+  .legend .price-credit a:hover {
+    color: var(--fg);
+    border-bottom-color: var(--fg-dim);
   }
   .controls {
     display: flex;
@@ -607,6 +672,10 @@
       <span class="key"><kbd>←</kbd><kbd>→</kbd>nawigacja</span>
       <span class="key"><kbd>drag</kbd>przewijanie</span>
       <span class="key"><kbd>R</kbd>powrót do startu</span>
+      <span class="key price-credit" id="priceCredit" hidden>
+        Ceny: <a href="https://boardgameprices.co.uk/" target="_blank" rel="noopener noreferrer">BoardGamePrices.co.uk</a>
+        <span id="priceCreditAge"></span>
+      </span>
     </div>
     <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
     <div class="controls">
@@ -717,6 +786,14 @@
       </svg>`;
   }
 
+  function arrowBiSVG() {
+    return `
+      <svg viewBox="0 0 96 56" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        <polyline class="stroke" points="36,14 20,28 36,42"/>
+        <polyline class="stroke" points="60,14 76,28 60,42"/>
+      </svg>`;
+  }
+
   function nodeHTML(edgeIndex) {
     const edges = edgesReversed();
     const edge = edges[edgeIndex];
@@ -751,6 +828,7 @@
     const rL = avatarLetter(edge.receiver);
     const sC = avatarCls(edge.sender);
     const rC = avatarCls(edge.receiver);
+    const priceHTML = renderPricePill(game.prices);
     return `
       <article class="node">
         <div class="name">
@@ -770,8 +848,39 @@
           <span class="label">${ru}</span>
           <span class="role">odbiera</span>
         </div>
+        <div class="price-row">${priceHTML}</div>
       </article>
     `;
+  }
+
+  const PLN_FMT = new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  function formatPLN(v) {
+    const n = Number(v);
+    if (!isFinite(n)) return '—';
+    return PLN_FMT.format(n);
+  }
+  function renderPricePill(p) {
+    if (!p || p.minProduct == null) {
+      const offers = p && typeof p.offers === 'number' ? p.offers : 0;
+      const label = offers > 0 ? '— brak cen PLN' : '— brak ofert PL';
+      return '<span class="price-pill is-empty" title="Brak ofert na BoardGamePrices.co.uk dla PLN/PL">' + label + '</span>';
+    }
+    const price = formatPLN(p.minProduct);
+    const offers = typeof p.offers === 'number' ? p.offers : 0;
+    const inStock = typeof p.inStock === 'number' ? p.inStock : 0;
+    const isInStock = String(p.stock || '').toUpperCase() === 'Y';
+    const stockNote = isInStock ? '' : ' <span class="pl-note">(zamów)</span>';
+    const title = 'BoardGamePrices.co.uk: ' + offers + ' ofert' +
+      (inStock ? ', ' + inStock + ' w magazynie' : '') +
+      ' (PLN, dostawa PL, bez kosztów wysyłki). Klik = lista ofert.';
+    const url = p.url || '';
+    if (!url) {
+      return '<span class="price-pill is-empty" title="' + escapeHtml(title) + '">od <b>' + price + ' zł</b>' + stockNote + '</span>';
+    }
+    return '<a class="price-pill is-link" href="' + escapeHtml(url) + '"' +
+      ' target="_blank" rel="noopener noreferrer"' +
+      ' title="' + escapeHtml(title) + '">' +
+      'od <b>' + price + ' zł</b>' + stockNote + '</a>';
   }
 
   function arrowHTML(num, maxN) {
@@ -781,6 +890,17 @@
       <span class="num">${display}</span>
       ${arrowSVG()}
     </div>`;
+  }
+
+  function arrowBiHTML() {
+    return `<div class="arrow arrow-bi" aria-hidden="true">
+      <span class="num">↔</span>
+      ${arrowBiSVG()}
+    </div>`;
+  }
+
+  function isMutual() {
+    return chainLen() === 2;
   }
 
   function loopBackChip() {
@@ -795,22 +915,51 @@
 
   function buildChain() {
     const n = chainLen();
+    const mutual = isMutual();
     let html = '';
-    let step = 1;
-    for (let r = 0; r < REPEATS; r++) {
-      for (let i = 0; i < n; i++) {
-        html += nodeHTML(i);
-        html += arrowHTML(step, n);
-        step++;
-        if (step > n) step = 1;
+    if (mutual) {
+      html += nodeHTML(0);
+      html += arrowBiHTML();
+      html += nodeHTML(1);
+    } else {
+      let step = 1;
+      for (let r = 0; r < REPEATS; r++) {
+        for (let i = 0; i < n; i++) {
+          html += nodeHTML(i);
+          html += arrowHTML(step, n);
+          step++;
+          if (step > n) step = 1;
+        }
+      }
+      html += loopBackChip();
+    }
+    carousel.innerHTML = html;
+  }
+
+  function updatePriceCredit() {
+    const el = document.getElementById('priceCredit');
+    if (!el) return;
+    const fetchedAt = (DATA.meta && DATA.meta.pricesFetchedAt) || null;
+    if (!fetchedAt) {
+      el.hidden = true;
+      return;
+    }
+    el.hidden = false;
+    const ageEl = document.getElementById('priceCreditAge');
+    if (ageEl) {
+      const d = new Date(fetchedAt);
+      if (!isNaN(d.getTime())) {
+        const date = d.toLocaleDateString('pl-PL', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        ageEl.textContent = ' · ' + date;
+      } else {
+        ageEl.textContent = '';
       }
     }
-    html += loopBackChip();
-    carousel.innerHTML = html;
   }
 
   fillLoopSelect();
   updateHeaderAndTitle();
+  updatePriceCredit();
   buildChain();
 
   document.getElementById('loopSelect').addEventListener('change', (e) => {
@@ -824,11 +973,19 @@
   });
 
   function loopWidth() {
+    if (isMutual()) return 0;
     const chip = carousel.querySelector('.loop-back');
     const chipW = chip ? chip.offsetWidth : 0;
     const gap = parseFloat(getComputedStyle(carousel).gap) || 0;
     const total = carousel.scrollWidth - chipW - gap;
     return total / REPEATS;
+  }
+
+  function snapStep() {
+    const tile = carousel.querySelector('.node');
+    const arrow = carousel.querySelector('.arrow');
+    const gap = parseFloat(getComputedStyle(carousel).gap) || 0;
+    return (tile?.offsetWidth || 200) + (arrow?.offsetWidth || 40) + gap * 2;
   }
 
   let lw = 0;
@@ -837,11 +994,15 @@
   requestAnimationFrame(() => requestAnimationFrame(recalc));
 
   function maybeWrap() {
+    if (isMutual()) { updateProgress(); return; }
     if (!lw) return;
     const x = carousel.scrollLeft;
-    if (x < lw * 0.5) {
+    const hyst = snapStep();
+    const low = Math.max(0, lw * 0.5 - hyst);
+    const high = lw * 1.5 + hyst;
+    if (x < low) {
       carousel.scrollLeft = x + lw;
-    } else if (x > lw * 1.5) {
+    } else if (x > high) {
       carousel.scrollLeft = x - lw;
     }
     updateProgress();
@@ -849,6 +1010,12 @@
 
   function center() {
     recalc();
+    if (isMutual()) {
+      const max = Math.max(0, carousel.scrollWidth - carousel.clientWidth);
+      carousel.scrollLeft = max / 2;
+      updateProgress();
+      return;
+    }
     if (!lw) { requestAnimationFrame(center); return; }
     carousel.scrollLeft = lw;
     updateProgress();
@@ -859,7 +1026,7 @@
 
   let isDown = false, startX = 0, startLeft = 0;
   carousel.addEventListener('pointerdown', (e) => {
-    if (e.target && e.target.closest && e.target.closest('a.art-link')) return;
+    if (e.target && e.target.closest && e.target.closest('a.art-link, a.price-pill')) return;
     isDown = true;
     carousel.classList.add('dragging');
     carousel.setPointerCapture(e.pointerId);
@@ -882,10 +1049,7 @@
   carousel.addEventListener('pointerleave', endDrag);
 
   function stepNav(dir) {
-    const tile = carousel.querySelector('.node');
-    const arrow = carousel.querySelector('.arrow');
-    const gap = parseFloat(getComputedStyle(carousel).gap) || 0;
-    const dist = (tile?.offsetWidth || 200) + (arrow?.offsetWidth || 40) + gap * 2;
+    const dist = snapStep();
     carousel.scrollBy({ left: dir * dist, behavior: 'smooth' });
   }
   document.getElementById('prev').addEventListener('click', () => stepNav(-1));
@@ -898,6 +1062,12 @@
 
   const bar = document.getElementById('progressBar');
   function updateProgress() {
+    if (isMutual()) {
+      const max = Math.max(0, carousel.scrollWidth - carousel.clientWidth);
+      const pct = max > 0 ? (carousel.scrollLeft / max) * 100 : 0;
+      bar.style.width = Math.max(4, pct) + '%';
+      return;
+    }
     if (!lw) return;
     const x = ((carousel.scrollLeft - lw * 0.5) % lw + lw) % lw;
     const pct = (x / lw) * 100;

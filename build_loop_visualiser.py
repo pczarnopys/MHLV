@@ -98,6 +98,12 @@ def main() -> int:
         type=Path,
         default=Path(__file__).resolve().parent / "geeklist_374834.json",
     )
+    ap.add_argument(
+        "--prices-json",
+        type=Path,
+        default=Path(__file__).resolve().parent / "prices.json",
+        help="Opcjonalny plik z cenami BGP (fetch_bgg_prices.py).",
+    )
     ap.add_argument("--out", type=Path, default=Path(__file__).resolve().parent / "LoopVisualiser.html")
     args = ap.parse_args()
 
@@ -120,6 +126,17 @@ def main() -> int:
         bid = row.get("bgg_id")
         if bid is not None and str(bid) not in by_bgg:
             by_bgg[str(bid)] = row
+
+    prices_payload: dict = {}
+    prices_map: dict[str, dict] = {}
+    if args.prices_json.is_file():
+        try:
+            prices_payload = json.loads(args.prices_json.read_text(encoding="utf-8"))
+            raw_map = prices_payload.get("byBggId") or {}
+            if isinstance(raw_map, dict):
+                prices_map = {str(k): v for k, v in raw_map.items() if v is not None}
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"OSTRZEZENIE: nie udalo sie wczytac {args.prices_json}: {e}")
 
     def item_payload(item_id: int) -> dict:
         ids = lista_map.get(item_id, [])
@@ -178,6 +195,8 @@ def main() -> int:
         if len(ids) > 1:
             meta += f" (+{len(ids) - 1})"
 
+        price_info = prices_map.get(str(bgg_id_out)) if bgg_id_out is not None else None
+
         return {
             "itemId": item_id,
             "bggId": bgg_id_out,
@@ -188,6 +207,7 @@ def main() -> int:
             "geeklistItemUrl": click_url,
             "description": description,
             "meta": meta,
+            "prices": price_info,
         }
 
     loops: list[list[dict]] = []
@@ -216,6 +236,10 @@ def main() -> int:
             "numLoops": len(loops),
             "groupSizes": group_sizes,
             "wynikiSource": "https://polskimathandel.github.io/Polski%20MatHandel%20%2359/Wyniki/Koncowe/Wyniki.txt",
+            "pricesFetchedAt": prices_payload.get("fetchedAt"),
+            "pricesCurrency": prices_payload.get("currency"),
+            "pricesDestination": prices_payload.get("destination"),
+            "pricesSource": prices_payload.get("source") or "https://boardgameprices.co.uk/api/plugin",
         },
         "loops": loops,
     }
