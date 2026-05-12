@@ -629,6 +629,149 @@
     margin: 0;
     cursor: pointer;
   }
+
+  /* ───── Search pill + dropdown ───── */
+  .meta label.pill.search-picker {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    cursor: text;
+    padding-right: 6px;
+  }
+  .search-input {
+    appearance: none;
+    background: var(--bg-3);
+    border: 1px solid var(--line-2);
+    color: var(--fg);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    outline: none;
+    width: min(260px, 40vw);
+    transition: border-color 120ms ease, box-shadow 120ms ease;
+  }
+  .search-input::placeholder {
+    color: var(--fg-mute);
+  }
+  .search-input:focus-visible {
+    border-color: oklch(72% 0.12 205);
+    box-shadow: 0 0 0 2px oklch(72% 0.12 205 / 0.25);
+  }
+  .search-results {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: auto;
+    width: max-content;
+    min-width: 420px;
+    max-width: 760px;
+    max-height: 60vh;
+    overflow-y: auto;
+    background: var(--bg-2);
+    border: 1px solid var(--line-2);
+    border-radius: 12px;
+    box-shadow: 0 20px 50px -20px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.02);
+    z-index: 50;
+    padding: 6px;
+  }
+  .search-results[hidden] { display: none; }
+  .search-result {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: var(--fg);
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 100ms ease;
+  }
+  .search-result:hover,
+  .search-result.is-active {
+    background: var(--bg-3);
+  }
+  .search-result .tag {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 3px 7px;
+    border-radius: 999px;
+    border: 1px solid var(--line-2);
+    color: var(--fg-dim);
+    background: var(--bg);
+    white-space: nowrap;
+  }
+  .search-result .tag.tag-user {
+    color: oklch(78% 0.12 205);
+    border-color: oklch(50% 0.12 205 / 0.5);
+  }
+  .search-result .tag.tag-game {
+    color: oklch(78% 0.12 145);
+    border-color: oklch(50% 0.12 145 / 0.5);
+  }
+  .search-result .tag.tag-both {
+    color: oklch(78% 0.12 295);
+    border-color: oklch(50% 0.12 295 / 0.5);
+  }
+  .search-result .text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.4;
+  }
+  .search-result .text b {
+    color: var(--fg);
+    font-weight: 600;
+  }
+  .search-result .text .game {
+    color: var(--fg-dim);
+  }
+  .search-result .text .arrow-w {
+    color: var(--fg-mute);
+    margin: 0 4px;
+  }
+  .search-result .loc {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    color: var(--fg-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+  .search-empty {
+    padding: 14px 14px;
+    text-align: center;
+    color: var(--fg-mute);
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+  }
+
+  @keyframes searchPulse {
+    0%   { box-shadow: 0 0 0 0 oklch(72% 0.12 205 / 0.65), 0 30px 60px -30px rgba(0,0,0,0.6); }
+    50%  { box-shadow: 0 0 0 6px oklch(72% 0.12 205 / 0.0), 0 30px 60px -30px rgba(0,0,0,0.6); }
+    100% { box-shadow: 0 0 0 0 oklch(72% 0.12 205 / 0.0), 0 30px 60px -30px rgba(0,0,0,0.6); }
+  }
+  .tile.is-highlight {
+    outline: 2px solid oklch(72% 0.12 205);
+    outline-offset: 2px;
+    animation: searchPulse 1.5s ease-out;
+  }
+
+  @media (max-width: 640px) {
+    .search-input { width: min(180px, 50vw); }
+    .search-results { min-width: 280px; }
+  }
 </style>
 </head>
 <body>
@@ -643,6 +786,13 @@
       </div>
     </div>
     <div class="meta">
+      <label class="pill search-picker">
+        <span style="opacity:.85">Szukaj</span>
+        <input id="searchInput" class="search-input" type="search" autocomplete="off"
+               placeholder="użytkownik lub gra…" aria-label="Wyszukaj użytkownika lub grę"
+               aria-controls="searchResults" aria-expanded="false" />
+        <div id="searchResults" class="search-results" hidden role="listbox" aria-label="Wyniki wyszukiwania"></div>
+      </label>
       <label class="pill loop-picker">
         <span style="opacity:.85">Pętla</span>
         <select id="loopSelect" class="loop-select" aria-label="Wybór pętli wymiany"></select>
@@ -800,10 +950,13 @@
       </svg>`;
   }
 
-  function nodeHTML(edgeIndex) {
+  function nodeHTML(edgeIndex, repeatIdx) {
     const edges = edgesReversed();
     const edge = edges[edgeIndex];
     const game = edge.game;
+    const n = edges.length;
+    const originalEdgeIdx = n - 1 - edgeIndex;
+    const rep = (typeof repeatIdx === 'number') ? repeatIdx : 0;
     const art = ARTS[edgeIndex % ARTS.length];
     const gk = GKEYS[edgeIndex % GKEYS.length];
     const glyphSvg = GLYPHS[gk];
@@ -836,7 +989,7 @@
     const rC = avatarCls(edge.receiver);
     const priceHTML = renderPricePill(game.prices);
     return `
-      <article class="node">
+      <article class="node" data-edge-original="${originalEdgeIdx}" data-repeat="${rep}">
         <div class="name">
           <span class="avatar ${sC}">${sL}</span>
           <span class="label">${su}</span>
@@ -924,14 +1077,14 @@
     const mutual = isMutual();
     let html = '';
     if (mutual) {
-      html += nodeHTML(0);
+      html += nodeHTML(0, 0);
       html += arrowBiHTML();
-      html += nodeHTML(1);
+      html += nodeHTML(1, 0);
     } else {
       let step = 1;
       for (let r = 0; r < REPEATS; r++) {
         for (let i = 0; i < n; i++) {
-          html += nodeHTML(i);
+          html += nodeHTML(i, r);
           html += arrowHTML(step, n);
           step++;
           if (step > n) step = 1;
@@ -1061,6 +1214,8 @@
   document.getElementById('prev').addEventListener('click', () => stepNav(-1));
   document.getElementById('next').addEventListener('click', () => stepNav(1));
   window.addEventListener('keydown', (e) => {
+    const t = e.target;
+    if (t && (t.id === 'searchInput' || (t.closest && t.closest('.search-results')))) return;
     if (e.key === 'ArrowLeft')  { e.preventDefault(); stepNav(-1); }
     if (e.key === 'ArrowRight') { e.preventDefault(); stepNav(1);  }
     if (e.key === 'r' || e.key === 'R') { center(); }
@@ -1079,6 +1234,277 @@
     const pct = (x / lw) * 100;
     bar.style.width = Math.max(4, pct) + '%';
   }
+
+  /* ───── Search: index, filter, render, navigate ───── */
+
+  const searchInput = document.getElementById('searchInput');
+  const searchResults = document.getElementById('searchResults');
+  const SEARCH_LIMIT = 50;
+  const SEARCH_MIN = 1;
+
+  function normalize(s) {
+    return String(s ?? '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '');
+  }
+
+  let SEARCH_INDEX = [];
+  function buildSearchIndex() {
+    const out = [];
+    const loops = DATA.loops || [];
+    for (let li = 0; li < loops.length; li++) {
+      const loop = loops[li];
+      for (let ei = 0; ei < loop.length; ei++) {
+        const e = loop[ei];
+        const sender = String(e.sender || '');
+        const receiver = String(e.receiver || '');
+        const title = String((e.game && e.game.title) || '');
+        const meta = String((e.game && e.game.meta) || '');
+        out.push({
+          loopIndex: li,
+          edgeIndex: ei,
+          sender,
+          receiver,
+          gameTitle: title,
+          gameMeta: meta,
+          nSender: normalize(sender),
+          nReceiver: normalize(receiver),
+          nTitle: normalize(title),
+        });
+      }
+    }
+    SEARCH_INDEX = out;
+  }
+
+  function runSearch(query) {
+    const q = normalize(query).trim();
+    if (q.length < SEARCH_MIN) return [];
+    const out = [];
+    for (let i = 0; i < SEARCH_INDEX.length; i++) {
+      const r = SEARCH_INDEX[i];
+      const userMatch = r.nSender.includes(q) || r.nReceiver.includes(q);
+      const gameMatch = r.nTitle.includes(q);
+      if (!userMatch && !gameMatch) continue;
+      let matchType;
+      if (userMatch && gameMatch) matchType = 'both';
+      else if (userMatch) matchType = 'user';
+      else matchType = 'game';
+      out.push({ ...r, matchType });
+    }
+    const rank = { user: 0, both: 1, game: 2 };
+    out.sort((a, b) => {
+      const da = rank[a.matchType] - rank[b.matchType];
+      if (da !== 0) return da;
+      if (a.loopIndex !== b.loopIndex) return a.loopIndex - b.loopIndex;
+      return a.edgeIndex - b.edgeIndex;
+    });
+    return out.slice(0, SEARCH_LIMIT);
+  }
+
+  function tagHTML(matchType) {
+    if (matchType === 'user') return '<span class="tag tag-user">użytkownik</span>';
+    if (matchType === 'game') return '<span class="tag tag-game">gra</span>';
+    return '<span class="tag tag-both">użytk. + gra</span>';
+  }
+
+  function renderResults(items, query) {
+    searchResults.innerHTML = '';
+    if (!query || query.trim().length < SEARCH_MIN) {
+      searchResults.hidden = true;
+      searchInput.setAttribute('aria-expanded', 'false');
+      return;
+    }
+    searchResults.hidden = false;
+    searchInput.setAttribute('aria-expanded', 'true');
+    if (items.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'search-empty';
+      empty.textContent = 'Brak wyników';
+      searchResults.appendChild(empty);
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    items.forEach((it, idx) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'search-result' + (idx === 0 ? ' is-active' : '');
+      btn.setAttribute('role', 'option');
+      btn.dataset.loop = String(it.loopIndex);
+      btn.dataset.edge = String(it.edgeIndex);
+      const loc = 'Pętla ' + (it.loopIndex + 1) + ' · #' + (it.edgeIndex + 1);
+      btn.innerHTML =
+        tagHTML(it.matchType) +
+        '<span class="text">' +
+          '<b>' + escapeHtml(it.sender) + '</b>' +
+          '<span class="arrow-w"> wysyła </span>' +
+          '<span class="game">' + escapeHtml(it.gameTitle) + '</span>' +
+          '<span class="arrow-w"> do </span>' +
+          '<b>' + escapeHtml(it.receiver) + '</b>' +
+        '</span>' +
+        '<span class="loc">' + escapeHtml(loc) + '</span>';
+      btn.addEventListener('click', () => {
+        goToResult(it.loopIndex, it.edgeIndex);
+        closeResults({ blurInput: true });
+      });
+      btn.addEventListener('mouseenter', () => setActiveResult(idx));
+      frag.appendChild(btn);
+    });
+    searchResults.appendChild(frag);
+    clampDropdownMaxWidth();
+  }
+
+  function getResultButtons() {
+    return Array.from(searchResults.querySelectorAll('.search-result'));
+  }
+
+  function setActiveResult(idx) {
+    const btns = getResultButtons();
+    if (btns.length === 0) return;
+    const next = (idx + btns.length) % btns.length;
+    btns.forEach((b, i) => b.classList.toggle('is-active', i === next));
+    const active = btns[next];
+    if (active) {
+      const top = active.offsetTop;
+      const bottom = top + active.offsetHeight;
+      const viewTop = searchResults.scrollTop;
+      const viewBot = viewTop + searchResults.clientHeight;
+      if (top < viewTop) searchResults.scrollTop = top;
+      else if (bottom > viewBot) searchResults.scrollTop = bottom - searchResults.clientHeight;
+    }
+  }
+
+  function moveActive(delta) {
+    const btns = getResultButtons();
+    if (btns.length === 0) return;
+    const cur = btns.findIndex((b) => b.classList.contains('is-active'));
+    setActiveResult((cur < 0 ? 0 : cur) + delta);
+  }
+
+  function closeResults(opts) {
+    searchResults.hidden = true;
+    searchInput.setAttribute('aria-expanded', 'false');
+    if (opts && opts.blurInput) searchInput.blur();
+  }
+
+  function clampDropdownMaxWidth() {
+    const picker = document.querySelector('.search-picker');
+    if (!picker) return;
+    const pickerLeft = picker.getBoundingClientRect().left;
+    const safetyMargin = 12;
+    const headerPad = Math.max(20, Math.min(56, Math.round(window.innerWidth * 0.04)));
+    const available = Math.max(280, window.innerWidth - pickerLeft - headerPad - safetyMargin);
+    searchResults.style.maxWidth = Math.min(760, available) + 'px';
+  }
+  window.addEventListener('resize', () => {
+    if (!searchResults.hidden) clampDropdownMaxWidth();
+  });
+
+  function highlightTile(node) {
+    if (!node) return;
+    const tile = node.querySelector('.tile');
+    if (!tile) return;
+    tile.classList.remove('is-highlight');
+    void tile.offsetWidth;
+    tile.classList.add('is-highlight');
+    setTimeout(() => tile.classList.remove('is-highlight'), 1500);
+  }
+
+  function scrollToEdgeNow(originalEdgeIdx) {
+    if (isMutual()) {
+      center();
+      const node = carousel.querySelector(
+        '.node[data-edge-original="' + originalEdgeIdx + '"]'
+      );
+      highlightTile(node);
+      return;
+    }
+    const node = carousel.querySelector(
+      '.node[data-repeat="1"][data-edge-original="' + originalEdgeIdx + '"]'
+    );
+    if (!node) {
+      center();
+      return;
+    }
+    const target = node.offsetLeft + node.offsetWidth / 2 - carousel.clientWidth / 2;
+    const left = Math.max(0, target);
+    try { carousel.scrollTo({ left, behavior: 'smooth' }); }
+    catch (_) { carousel.scrollLeft = left; }
+    highlightTile(node);
+    updateProgress();
+  }
+
+  function goToResult(loopIdx, originalEdgeIdx) {
+    if (loopIdx !== currentLoop) {
+      currentLoop = loopIdx;
+      const sel = document.getElementById('loopSelect');
+      if (sel) sel.value = String(currentLoop);
+      updateHeaderAndTitle();
+      buildChain();
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        recalc();
+        scrollToEdgeNow(originalEdgeIdx);
+      }));
+    } else {
+      scrollToEdgeNow(originalEdgeIdx);
+    }
+  }
+
+  let searchDebounce = 0;
+  function onSearchInput() {
+    const q = searchInput.value;
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => {
+      const items = runSearch(q);
+      renderResults(items, q);
+    }, 120);
+  }
+
+  searchInput.addEventListener('input', onSearchInput);
+  searchInput.addEventListener('focus', () => {
+    if (searchInput.value && searchInput.value.trim().length >= SEARCH_MIN) {
+      const items = runSearch(searchInput.value);
+      renderResults(items, searchInput.value);
+    }
+  });
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (searchResults.hidden) {
+        const items = runSearch(searchInput.value);
+        renderResults(items, searchInput.value);
+      } else {
+        moveActive(1);
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      moveActive(-1);
+    } else if (e.key === 'Enter') {
+      const btns = getResultButtons();
+      const active = btns.find((b) => b.classList.contains('is-active')) || btns[0];
+      if (active) {
+        e.preventDefault();
+        active.click();
+      }
+    } else if (e.key === 'Escape') {
+      if (!searchResults.hidden) {
+        e.preventDefault();
+        closeResults();
+      } else if (searchInput.value) {
+        e.preventDefault();
+        searchInput.value = '';
+      }
+    }
+  });
+
+  document.addEventListener('pointerdown', (e) => {
+    const t = e.target;
+    if (!t) return;
+    if (t.closest && t.closest('.search-picker')) return;
+    closeResults();
+  });
+
+  buildSearchIndex();
 </script>
 
 </body>
